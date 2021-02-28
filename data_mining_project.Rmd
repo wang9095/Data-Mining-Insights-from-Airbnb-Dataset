@@ -1,0 +1,768 @@
+---
+title: "Data Mining Project"
+output: html_notebook
+---
+
+```{r}
+library(ggthemes)
+library(tm)
+library(ggplot2)
+library(dplyr)
+library(ggcorrplot)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(lubridate)
+library(tidyverse)
+library(sf)
+library(raster)
+library(dplyr)
+library(spData)
+library(tidyr)
+library(tmap)
+library(leaflet)
+library(ggmap)
+library(rgdal)
+library(tigris)
+library(tidytext)
+library(wordcloud)
+library(RColorBrewer)
+library(tidyr) 
+library(ggplot2)
+library(e1071)
+library(lattice)
+library(gains)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(forecast)
+library(class)
+```
+<h2>Step I: Data Preparation & Exploration</h2>
+
+<h4>Reading the Hawaii file</h4>
+
+```{r}
+hawaii <-read_csv("hawaii-data.csv")
+NShoreKauai <- subset(hawaii,neighbourhood_cleansed=="North Shore Kauai") 
+```
+
+<h3>Data Cleaning and Manipulation</h3>
+
+<h4>Dropping columns which we are not going to use</h4>
+#We have deleted few rows from the excel file manually. 
+Rows-> id,listing_url,scrape_id,last_scraped,picture_url,host_url,host_name,host_thumbnail_url,host_picture_url
+
+```{r}
+#R code to delete rows mentioned above
+NShoreKauai <- NShoreKauai[ -c(1:4,8,10:11,19:20)]
+```
+
+<h3>Part-1: Missing Values</h3>
+<h4>Checking the Missing Values in our dataset</h4>
+```{r}
+
+# I. Missing Values
+
+#Finding missing Values #summary(NShoreKauai) #is.na(NShoreKauai)
+#The below will tell us how many NAs are present and in which column
+NA_columns <- sapply(NShoreKauai,function(x) sum(is.na(x)))
+#View(NA_columns)
+
+#The NA_columns will tell us the list of all columns which has NAs and how many
+```
+
+<h4>Handling the Missing Values in all of the variables</h4>
+```{r}
+NShoreKauai_Step1 <- NShoreKauai 
+#library(tidyr) 
+na.strings=c("", " ", "NA")
+NShoreKauai_Step1$description[is.na(NShoreKauai_Step1$description)]<-"NA"
+
+#neighborhood_overview
+NShoreKauai_Step1$neighborhood_overview[is.na(NShoreKauai_Step1$neighborhood_overview)]<-"NA"
+
+#host_location
+NShoreKauai_Step1$host_location[is.na(NShoreKauai_Step1$host_location)]<-"NA"
+
+#host_about
+NShoreKauai_Step1$host_about[is.na(NShoreKauai_Step1$host_about)]<-"NA"
+
+#host_neighbourhood
+NShoreKauai_Step1$host_neighbourhood[is.na(NShoreKauai_Step1$host_neighbourhood)]<-"NA"
+
+#neighbourhood
+NShoreKauai_Step1$neighbourhood[is.na(NShoreKauai_Step1$neighbourhood)]<-"NA"
+
+#bathrooms --- No data shows in whole column
+NShoreKauai_Step1$bathrooms[is.na(NShoreKauai_Step1$bathrooms)]<-"NA" 
+
+#beds
+median(NShoreKauai_Step1$beds, na.rm = TRUE) 
+mean(NShoreKauai_Step1$beds, na.rm = TRUE)
+NShoreKauai_Step1$beds[is.na(NShoreKauai_Step1$beds)]<-median(NShoreKauai_Step1$beds,na.rm = TRUE) 
+
+#bedrooms 
+median(NShoreKauai_Step1$bedrooms, na.rm = TRUE)
+mean(NShoreKauai_Step1$bedrooms, na.rm = TRUE)
+NShoreKauai_Step1$bedrooms[is.na(NShoreKauai_Step1$bedrooms)]<-median(NShoreKauai_Step1$bedrooms,na.rm = TRUE) 
+
+#calendar_updated --- No data shows in whole column
+NShoreKauai_Step1$calendar_updated[is.na(NShoreKauai_Step1$calendar_updated)]<-"NA"
+
+#first_review 
+NShoreKauai_Step1$first_review <- as.numeric(NShoreKauai_Step1$first_review)
+NShoreKauai_Step1$first_review[is.na(NShoreKauai_Step1$first_review)]<-"NA"
+
+#last_review 
+NShoreKauai_Step1$last_review <-as.numeric(NShoreKauai_Step1$last_review)
+NShoreKauai_Step1$last_review[is.na(NShoreKauai_Step1$last_review)]<-"NA"
+
+#review_scores_rating 
+median(NShoreKauai_Step1$review_scores_rating, na.rm = TRUE) 
+mean(NShoreKauai_Step1$review_scores_rating, na.rm = TRUE)
+NShoreKauai_Step1$review_scores_rating[is.na(NShoreKauai_Step1$review_scores_rating)]<-median(NShoreKauai_Step1$review_scores_rating,na.rm = TRUE) 
+
+#review_scores_accuracy 
+median(NShoreKauai_Step1$review_scores_accuracy, na.rm = TRUE) 
+mean(NShoreKauai_Step1$review_scores_accuracy, na.rm = TRUE)
+NShoreKauai_Step1$review_scores_accuracy[is.na(NShoreKauai_Step1$review_scores_accuracy)]<-median(NShoreKauai_Step1$review_scores_accuracy,na.rm = TRUE) 
+
+#review_scores_cleanliness
+mean(NShoreKauai_Step1$review_scores_cleanliness, na.rm = TRUE)
+NShoreKauai_Step1$review_scores_cleanliness[is.na(NShoreKauai_Step1$review_scores_cleanliness)]<-median(NShoreKauai_Step1$review_scores_cleanliness,na.rm = TRUE) 
+
+#review_scores_checkin 
+median(NShoreKauai_Step1$review_scores_checkin, na.rm = TRUE) 
+mean(NShoreKauai_Step1$review_scores_checkin, na.rm = TRUE)
+NShoreKauai_Step1$review_scores_checkin[is.na(NShoreKauai_Step1$review_scores_checkin)]<-median(NShoreKauai_Step1$review_scores_checkin,na.rm = TRUE) 
+
+#review_scores_communication
+median(NShoreKauai_Step1$review_scores_communication, na.rm = TRUE)
+mean(NShoreKauai_Step1$review_scores_communication, na.rm = TRUE)
+NShoreKauai_Step1$review_scores_communication[is.na(NShoreKauai_Step1$review_scores_communication)]<-median(NShoreKauai_Step1$review_scores_communication,na.rm = TRUE) 
+
+#review_scores_location 
+median(NShoreKauai_Step1$review_scores_location, na.rm = TRUE) 
+mean(NShoreKauai_Step1$review_scores_location, na.rm = TRUE)
+NShoreKauai_Step1$review_scores_location[is.na(NShoreKauai_Step1$review_scores_location)]<-median(NShoreKauai_Step1$review_scores_location,na.rm = TRUE) 
+
+#review_scores_value 
+median(NShoreKauai_Step1$review_scores_value, na.rm = TRUE) 
+mean(NShoreKauai_Step1$review_scores_value, na.rm = TRUE)
+NShoreKauai_Step1$review_scores_value[is.na(NShoreKauai_Step1$review_scores_value)]<-median(NShoreKauai_Step1$review_scores_value,na.rm = TRUE) 
+
+#reviews_per_month 
+median(NShoreKauai_Step1$reviews_per_month, na.rm = TRUE) 
+mean(NShoreKauai_Step1$reviews_per_month, na.rm = TRUE)
+NShoreKauai_Step1$reviews_per_month[is.na(NShoreKauai_Step1$reviews_per_month)]<-median(NShoreKauai_Step1$reviews_per_month,na.rm = TRUE) 
+
+#license
+NShoreKauai_Step1$license[is.na(NShoreKauai_Step1$license)]<-"NA" 
+NShoreKauai_Step1$price = as.numeric(gsub("\\$", "", NShoreKauai_Step1$price))
+
+#price
+NShoreKauai_Step1$price[is.na(NShoreKauai_Step1$price)]<- median(NShoreKauai_Step1$price,na.rm = TRUE)
+anyNA(NShoreKauai_Step1)
+
+```
+
+<b>Thought process in dealing with missing values</b>
+<i>Since we need to deal with missing values differently for different tasks, 
+the first step is to identity types of missing values. A type of missing values 
+is identified as the missing the words description values, such as neighborhood overview 
+and license description, we replaced "NA" into the blank in data frame. Also, another 
+type of missing values can be identified as the missing the number and numeric values, 
+we imputed the missing values as the median of its column instead of dropping them from the data.</i>
+
+<h3>Part-2: Summary Stats</h3>
+```{r}
+# II.Summary Statistics 
+summary(NShoreKauai_Step1$minimum_nights)
+fivenum(NShoreKauai_Step1$minimum_nights) 
+sd(NShoreKauai_Step1$minimum_nights)
+var(NShoreKauai_Step1$minimum_nights)
+range(NShoreKauai_Step1$minimum_nights)
+
+# number of bedrooms provides 
+summary(NShoreKauai_Step1$bedrooms)
+fivenum(NShoreKauai_Step1$bedrooms) 
+sd(NShoreKauai_Step1$bedrooms)
+var(NShoreKauai_Step1$bedrooms) 
+range(NShoreKauai_Step1$bedrooms)
+```
+<b>Thought process in summary stats</b>
+<i>When we come to this question: what are the range of the minimum nights
+required Airbnband what is the range of the number of bedrooms that Airbnb 
+provides in NorthShore Kauai,We can use the summary function, fiveunm function,
+standard deviation function, variance function and range function to find out the answers. 
+The minimum and maximum nights for the minimum nights required are 1 and 180 nights,
+mean is 3.744, median is 3 , standard deviation is 9.15816 andvariance is 83.8719. 
+And for the number of nights provides, the minimum andmaximum number of bedrooms provides 
+are 1 and 8 bedrooms, mean is 2.173, median is 2, standard deviation is 1 and variance is 1.</i>
+
+<h3>Part-3: Data Visualization</h3>
+<h4>Plot-1- We would like to know the top most amenities offered by all host in this neighborhood</h4>
+```{r}
+#Plot-1- We would like to know the top most amenities offered by all host in this neighborhood
+Amenities_list <- NShoreKauai_Step1 %>%
+  dplyr::select(amenities)
+
+#wordcloudtext <- Amenities_list$amenities
+wordclouddoc <- Corpus(VectorSource(Amenities_list$amenities))
+
+# clean the data to remove punctuation,numbers etc .
+wordclouddoc <- wordclouddoc %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(stripWhitespace)
+wordclouddoc <- tm_map(wordclouddoc, content_transformer(tolower))
+wordclouddoc <- tm_map(wordclouddoc, removeWords, stopwords("english"))
+
+# Create a document term matrix to have words in the first column and frequency in the second 
+dtm <- TermDocumentMatrix(wordclouddoc)
+matrix <- as.matrix(dtm)
+words <- sort(rowSums(matrix), decreasing = TRUE)
+All_amenities <- data.frame(word = names(words), freq = words)
+
+Top_10_amenities <- All_amenities %>%
+  filter(freq>1000)
+
+#Plot the graph of all amenities which has frequency higher than 1000
+ggplot(Top_10_amenities, aes(x = word,y=freq)) + 
+  geom_point(colour="black") + 
+  ggtitle('Most preferred Amenities Type') + 
+  xlab('Amenities Type') + 
+  ylab('Frequency')
+
+```
+
+<b>Description:</b>The above visualization tells us the amenities AirBnB hosts are offering to the guest on the property.Almost all of the hosts are offering free wifi and Parking space.But not all hosts are offering Iron board.One of the most important thing these hosts are offering is Dryer(hair dryer and cloth dryer). Most of the hosts offer dryer because many people would like to dry their cloths after they come from the beach. 
+
+<h4>Plot-2:We would like to know the number of reviews received by the hosts based on the fact that if host of super host</h4>
+```{r}
+#Graph-2
+#We would like to know the number of reviews received by the hosts based on the fact that if host of super host
+ggplot(NShoreKauai_Step1, aes(x=host_is_superhost, y=number_of_reviews))+
+  geom_boxplot(color="black", fill="yellow")+
+  ggtitle("# of Reviews by Type of Host")+coord_flip()+
+  xlab("Superhost")+
+  ylab("# of Reviews")
+```
+
+<b>Description:</b>Reviews can be given to any hosts. But when we look at the data, we found that Number of reviews received by Super hosts is higher than non-superhost. The average reviews received by superhost is comparatively higher than Non-superhost.There are few superhost who has received reviews between 300 and 400. There are no superhost with "0" reviews.This way we can say that getting review and fixing the problem of the property might be a thing for superhost to keep getting reviews. 
+
+<h4>Plot-3:We would like to know how the beds are distributed based on the number of people that can be accommodated by the airbnb host</h4>
+
+```{r}
+#Graph-3
+#We would like to know how the beds are distributed based on the number of people that can be accommodated by the airbnb host
+ggplot(data = NShoreKauai_Step1,mapping = aes(x=accommodates,y=beds))+geom_point(alpha=0.6,aes(color=host_is_superhost))+ggtitle("Number of beds based on number of people can accomodates")+xlab("Number of accpmmodation offered by Hosts")+ylab("Number of beds offered by Hosts")
+```
+<b>Description:</b>The above graph provides us distribution of beds vs. how many people can accommodates. As we can see that these are somehow strongly co-related.Offering of beds are increasing when the property has higher accommodation which is quite evident.But the most striking thing we can draw from the graph is that non-superhosts are offering huge spaces for few number of people.Superhosts places are bit tight in terms of beds and accommodation.
+
+<h4>Plot-4:we Would like to know the price distribution of the neighborhood</h4>
+
+```{r}
+#Graph-4
+#we Would like to know the price distribution of the neighborhood
+ggplot(NShoreKauai_Step1, aes(x=price))+ geom_histogram(binwidth = 1000,fill="tomato4",color="black",stat = 'count',bins = 20)+
+  ggtitle("Price Distribution")+
+  ylab("Frequency")+
+  xlab("Price")+
+  theme_economist()
+```
+<b>Description: </b>The graph shows the price distribution of all properties in the neighbouhood. We can say that that the most of the properties are priced between 100 and 350. There are few properties priced more than $750.These properties are Entire houses with higher number of accommodates.
+
+<h4>Plot-5: The below graph will help us to know the listing in the neighbouhood based on the Property Type</h4>
+
+```{r}
+#5 Listing of the AIRBNB based on the property Type
+ggplot(NShoreKauai_Step1, aes(x =fct_infreq(property_type))) + 
+  geom_bar(colour="black",width=0.5) + 
+  ggtitle('Most preferred Property Type') + 
+  xlab('Property Type') + 
+  ylab('Frequency') + 
+  coord_flip()
+```
+<b>Description: </b>From the above graph, we can say that the most offered property type from this neighborhood is entire condo. This is because, most of the people visit as a family, or couple so they would prefer entire condo for them.We also notice that there are very less shared room in this neighborhood that means there are few singles or might be solo travelers visiting here.
+
+<h4>Plot-6:We would like to know rise of Host listings on AirBNB platforms in last 11 years</h4>
+
+```{r}
+#Graph-6
+#We would like to know rise of Host listings on AirBNB platforms in last 11 years
+#The below visualization will use the mix of line and point graph
+a=NShoreKauai_Step1$host_since
+a <- as.Date(NShoreKauai_Step1$host_since,'%m/%d/%y')
+NShore_Kauai_host <- NShoreKauai_Step1 %>%
+  mutate(Year = year(a))%>%
+  group_by(host_id,Year)%>%
+  dplyr::select(Year, host_id,host_is_superhost,host_total_listings_count)
+
+#Let's remove the duplicate rows from the dataset
+NShore_Kauai_host <- NShore_Kauai_host[!duplicated(NShore_Kauai_host), ]
+NShore_Kauai_host_new<-tapply(NShore_Kauai_host$host_total_listings_count,NShore_Kauai_host$Year,FUN = sum)
+NShore_Kauai_host_new <- data.frame(NShore_Kauai_host_new)
+Year <- c('2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019','2020')
+Yearly_listing_count <- data.frame(year=Year,Total_listing = NShore_Kauai_host_new$NShore_Kauai_host_new)
+ggplot(data =Yearly_listing_count,aes(x=year,y=Total_listing,group=1))+geom_point(shape=21,color='black',fill='#69b3a2',size=5)+geom_line(color='grey')+ggtitle('Total listings from AirBNB Hosts in North Shore Kauai by Year') + 
+  xlab('Total listings from Hosts') + 
+  ylab('Year')
+```
+
+<b>Description: </b>The graph shows the trends of listings from hosts in this neighborhood. We can see rising trends until 2018.We see a huge dip in the listing in 2019 because there was a destructive flood in the area which destroyed the tourism in this neighborhood. The neighborhood become a hot vacation spot in 2018 but suddenly due to flood and covid the listing has gown down well below than 2014.
+
+
+<h3>Part-4: Mapping</h3>
+```{r}
+options(scipen = 999)
+world <- ne_countries(scale = "medium", returnclass = "sf") #Create object with geo locations
+NShoreKauai_LocationsPrice <- data.frame(longitude = NShoreKauai_Step1$longitude, latitude = NShoreKauai_Step1$latitude, price = as.numeric(NShoreKauai_Step1$price))
+theme_set(theme_bw())
+Mapping_Price <- ggplot(data = world) +
+  geom_sf() +
+  geom_point(data = NShoreKauai_LocationsPrice, aes(x = longitude, y = latitude, fill = price), size = 4, 
+             shape = 23) +
+  coord_sf(xlim = c(-159.5580, -159.3317), ylim = c(22.19123, 22.22410), expand = FALSE) +
+  ggtitle("Map of North Shore Kauai in Hawaii with Price heat Map")+
+  theme(plot.title = element_text(hjust = 0.7))
+
+Mapping_Price
+```
+
+<b>Description: </b> The plotted map shows the spread of the airbnb listing on the map of hawaii. As we can see that the most of the property is concentrated in the center part of North Shore and as we go west(i.e. toward the beach) price of the property increases and listing count also decreases as not much houses will be available closer to the beach
+
+
+<h3>Part-5: Word Cloud</h3>
+
+```{r}
+# extract neighborhood overview column from data frame
+wordcloud = NShoreKauai_Step1$neighborhood_overview
+wordcloud = data.frame(wordcloud)
+wordcloud = wordcloud %>% unnest_tokens(word, wordcloud)
+
+# remove stop words and make sure to return meaningful result
+wordcloud = wordcloud %>% anti_join(stop_words)
+
+# build the wordcloud
+wordcloud %>% 
+  with(wordcloud(word, max.words = 50,rot.per=0.80, scale=c(3.5,0.25),colors=brewer.pal(8, "Dark2")))
+```
+<b>Description: </b>The larger the word in wordcloud, the more frequent used in text. First of all, beach is the most important word in the text. Secondly, hanai tells us that maybe most Airbnb are located in Hanaei. At last the blue and red words are also very important. From the wordcloud, I know that my neighborhood is a good place to travel. People and lie on the beach, play golf, go shopping and there are many quiet resorts.
+
+<h2> Step II: Prediction </h2>
+
+```{r}
+#Before we start working on Multiple linear regression, let's look at the variable type in the data frame
+#str(NShoreKauai_Step1)
+
+#I will select the columns which are relevant for the Linear Regression model
+
+NShoreKauai_lm <- NShoreKauai_Step1 %>%
+  dplyr::select(host_response_time,host_response_rate,host_acceptance_rate,host_is_superhost,
+                host_listings_count,host_identity_verified,room_type,price,accommodates,
+                bedrooms,beds,minimum_nights,maximum_nights,number_of_reviews,review_scores_rating,
+                review_scores_accuracy,review_scores_cleanliness,review_scores_checkin,
+                review_scores_communication,review_scores_location,review_scores_value,
+                calculated_host_listings_count,calculated_host_listings_count_entire_homes,reviews_per_month)
+
+#Remove the percentage sign from the column
+NShoreKauai_lm$host_acceptance_rate = as.numeric(gsub("\\%", "", NShoreKauai_lm$host_acceptance_rate))
+NShoreKauai_lm$host_response_rate = as.numeric(gsub("\\%", "", NShoreKauai_lm$host_response_rate))
+
+#Let's fill the 'NA' values of the host response rate & host acceptance rate with the median of the respective variables from this neighborhood
+NShoreKauai_lm$host_response_rate[is.na(NShoreKauai_lm$host_response_rate)]<- median(NShoreKauai_lm$host_response_rate,na.rm = TRUE)
+NShoreKauai_lm$host_acceptance_rate[is.na(NShoreKauai_lm$host_acceptance_rate)]<- median(NShoreKauai_lm$host_acceptance_rate,na.rm = TRUE)
+NShoreKauai_lm$reviews_per_month[is.na(NShoreKauai_lm$reviews_per_month)]<- median(NShoreKauai_lm$reviews_per_month,na.rm = TRUE)
+NShoreKauai_lm$host_response_rate <- NShoreKauai_lm$host_response_rate/100
+NShoreKauai_lm$host_acceptance_rate <- NShoreKauai_lm$host_acceptance_rate/100
+
+#Let's fill the 'NA' values of the price with the median value of the price in the neighbouhood
+NShoreKauai_lm$price[is.na(NShoreKauai_lm$price)]<- median(NShoreKauai_lm$price,na.rm = TRUE)
+
+#Converted host response time 
+
+#set seed(1010)
+set.seed(1010)
+options(scipen = 999)
+
+#Create train and valid dataset with 50% each from the main dataset
+NShoreKauai_lm$number <- runif(nrow(NShoreKauai_lm))
+train <- subset(NShoreKauai_lm,NShoreKauai_lm$number <= 0.5) # Approx. 50% of total
+valid <- subset(NShoreKauai_lm,NShoreKauai_lm$number > 0.5) #Approx. 50% of total
+
+#Dropping the column "number" as this is not required
+train$number <- NULL
+valid$number <- NULL
+#str(train)
+
+#Building the Multi-linear regression with price as outcome variable and all of the variables as predictor
+NShoreKauai_lm_model <- lm(price~.,data = train)
+#Shows the summary of the model
+summary(NShoreKauai_lm_model)
+
+#Code to build model with the help of backward and forward elimination process
+#NShoreKauai_lm_model_backward <- step(NShoreKauai_lm_model,direction = "backward")
+#summary(NShoreKauai_lm_model_backward)
+#NShoreKauai_lm_model_forward <- step(NShoreKauai_lm_model,direction = "forward")
+#summary(NShoreKauai_lm_model_forward)
+
+#Running the model on the Train data set to find out the accuracy of the model on the train dataset
+predict_mlr <- predict(NShoreKauai_lm_model,train)
+accuracy(predict_mlr,train$price)
+
+
+#Running the model on the validation data set to find out the accuracy of the model on the valid dataset
+
+valid<-valid[!(valid$room_type=="Shared room"),]
+predict_mlr <- predict(NShoreKauai_lm_model,valid)
+accuracy(predict_mlr,valid$price)
+```
+
+<b>Show a screenshot of your regression summary, and explain the regression
+equation that it generated.</b>
+
+<b>Ans: </b> The above result shows the summary of the model along with the co-efficient. Variables such as review_scores_cleanliness,host_response_timewithin a day,host_response_timewithin a few hours,host_response_timewithin an hour,host_is_superhostTRUE,room_typeHotel room,room_typePrivate room,bedrooms and beds are going to raise the price. In general, from the linear regression model, we can say that super host, bigger room type and higher reviews would increase the price of the listing on the airbnb. 
+
+<b>1. What is the r-squared of your model? What does this mean?</b>
+The r-squared value of the model is 0.3559. R-squared is a goodness of fit measure of our model. This shows the percetage of variance in the dependent variable that the independent variables explain collectively. 
+R-squared measures the strength of the relationship between the model and dependent variables on a 0-1 scale. 
+
+In our case, the value of R-squared is not high so we can say that the precision of the model might not be very great.
+Our model has strong correlation between some of the variables with price. 
+
+<b>2. What is the RMSE of your model? What does this mean?</b>
+The RMSE value of our model are shown above against Train and Validation data set. 
+
+For Train dataset = 137.561
+For Valid dataet  = 136.2615
+
+If we compare the value of these two RMSE value, we can say that our model is fitting well with the valid dataset.
+our model is NOT overfitted. 
+
+<h3>Plotting our model </h3>
+```{r}
+plot(NShoreKauai_lm_model)
+plot(predict_mlr)
+```
+
+
+<h2> Step III: Classification</h2>
+<h3>Part I . Using k-nearest neighbors</h3>
+```{r}
+#using the above created "NShoreKauai_lm" data frame to get the numerical variables only
+NShoreKauai_kn <- NShoreKauai_lm %>%
+  dplyr::select(host_response_rate,host_acceptance_rate,
+                host_listings_count,price,accommodates,
+                bedrooms,beds,minimum_nights,maximum_nights,number_of_reviews,review_scores_rating,
+                review_scores_accuracy,review_scores_cleanliness,review_scores_checkin,
+                review_scores_communication,review_scores_location,review_scores_value,
+                calculated_host_listings_count,calculated_host_listings_count_entire_homes,reviews_per_month,room_type)
+
+#New dataset
+new.df <- data.frame(host_response_rate = 0.9,host_acceptance_rate = 0.9,
+                     host_listings_count=3,price=250,accommodates= 4,
+                     bedrooms=2,beds=2,minimum_nights=2,maximum_nights=30,
+                     number_of_reviews=48,review_scores_rating=92,review_scores_accuracy=9,
+                     review_scores_cleanliness=9,review_scores_checkin=9,
+                     review_scores_communication=8,review_scores_location=9,review_scores_value=9,
+                     calculated_host_listings_count=3,calculated_host_listings_count_entire_homes=2,
+                     reviews_per_month=0.70)
+
+#Deleting row related to "shared room" as it has only one record so that we can avoid unnecessary cluster
+NShoreKauai_kn <- NShoreKauai_kn[!(NShoreKauai_kn$room_type=="Shared room"),]
+
+#Sampling the data into two equal set - train and valid set
+set.seed(1010)
+NShoreKauai_kn$number <- runif(nrow(NShoreKauai_kn))
+train_knn <- subset(NShoreKauai_kn,NShoreKauai_kn$number <= 0.5) # Approx. 50% of total
+valid_knn <- subset(NShoreKauai_kn,NShoreKauai_kn$number > 0.5) #Approx. 50% of total
+
+train_knn$number <- NULL
+valid_knn$number <- NULL
+NShoreKauai_kn$number <-NULL
+#Normalizing the training and validation data set
+train.norm.df <- train_knn
+valid.norm.df <- valid_knn
+NShoreKauai_kn.norm.df <- NShoreKauai_kn
+
+#Using PreProcess() to normalize all of the numerical variables
+norm.values <- preProcess(train_knn[,1:20],method = c("center","scale"))
+train.norm.df[,1:20] <- predict(norm.values,train_knn[,1:20])
+valid.norm.df[,1:20] <- predict(norm.values,valid_knn[,1:20])
+NShoreKauai_kn.norm.df[,1:20] <- predict(norm.values,NShoreKauai_kn[,1:20])
+new.norm.df <- predict(norm.values,new.df)
+
+#Using KNN() to compute the knn
+
+cl <- train.norm.df[,21,drop =TRUE]
+knn <- knn(train = train.norm.df[,1:20],test = new.norm.df,cl,k = 7)
+knn
+
+accuracy.df <- data.frame(k=seq(1,14,1),accuracy = rep(0,14))
+
+#for (i in 1:14) {
+ # cl <- train.norm.df[,21,drop =TRUE]
+  #knn.pred <- knn(train.norm.df[,1:20],valid.norm.df[,1:20],cl,k=i)
+  #accuracy.df[i,2] <- confusionMatrix(knn.pred,valid.norm.df[,21])$overall[1]
+#}
+
+```
+
+<b>Description: </b>The K-nearest model above shows that the new dataset should belong to Entire home/apt room type. 
+The model predicts what kind of room type customer would be looking for based on the several inputs. The airbnb team can use this kind of model to predict the room type and then reach out to such hosts to meet the demands in the future. 
+
+
+<h3>Classification, Part II. Naive Bayes</h3>
+```{r}
+#a. outcome variable is 'instant_bookable',explore the predictor variable
+#predictor:'host_response_rate', 'bedrooms', 'minimum_nights', 'price'
+#data preparation for naive bays.
+#a. outcome variable is 'instant_bookable',explore the predictor variable
+#predictor variables:'host_response_rate', 'bedrooms', 'minimum_nights', 'price','accommodates',
+
+#!! add 2 'host_acceptance_rate', 'host_is_superhost'
+
+#Data preparation 1. Remove unuseful variables
+NSK_Step1 <- NShoreKauai_Step1
+names(NSK_Step1) #!!
+NSK_Step1$listing_url <- NULL
+NSK_Step1$picture_url <- NULL
+NSK_Step1$host_url <- NULL
+NSK_Step1$host_thumbnail_url <- NULL
+NSK_Step1$host_picture_url <- NULL
+NSK_Step1$scrape_id <- NULL
+NSK_Step1$id <- NULL
+NSK_Step1$name <- NULL
+NSK_Step1$host_name<- NULL
+NSK_Step1$number_of_reviews_l30d<- NULL
+NSK_Step1$host_id<- NULL
+NSK_Step1$neighbourhood_cleansed <- NULL
+NSK_Step1$neighbourhood_group_cleansed <- NULL
+NSK_Step1$bathrooms <- NULL # all NAs
+NSK_Step1$calendar_updated <- NULL # all NAs
+View(NSK_Step1)
+
+NSK_Step3NB <- NSK_Step1
+NSK_Step3NB$amenities <- NULL
+NSK_Step3NB$latitude <- NULL
+NSK_Step3NB$longitude <- NULL
+NSK_Step3NB$last_scraped <- NULL
+NSK_Step3NB$host_verifications <- NULL
+
+#Data preparation 2. Bin the variables in creating groups that contain mostly similar numbers of records and change numerical variables to categorical
+
+#2.1 Bin the variables of host_response_rate
+View(NSK_Step3NB$host_response_rate)
+NSK_Step3NB$host_response_rate= as.numeric(gsub("\\%", "", NSK_Step3NB$host_response_rate))
+NSK_Step3NB$host_response_rate <- NSK_Step3NB$host_response_rate/100
+NSK_Step3NB$host_response_rate[is.na(NSK_Step3NB$host_response_rate)]<-median(NSK_Step3NB$host_response_rate,na.rm = TRUE) 
+NSK_Step3NB$host_response_rate<- cut(NSK_Step3NB$host_response_rate,breaks = c(-Inf,0.25,0.5,0.75,1),labels = c("0-25%","26-50%","51-75%","76-100%"))
+
+#2.2 Bin the variables of bedrooms
+fivenum(NSK_Step3NB$bedrooms)
+NSK_Step3NB$bedrooms<- cut(NSK_Step3NB$bedrooms,breaks = c(-Inf,2,3,8),labels = c("small size of house","medium size of house","large size of house"))
+
+#2.3 Bin the variables of minimum_nights
+fivenum(NSK_Step3NB$minimum_nights)
+NSK_Step3NB$minimum_nights<- cut(NSK_Step3NB$minimum_nights,breaks = c(-Inf,1,2,3,4,180),labels = c("one night","two nights","three nights","four nights","less than 180 nights"))
+
+#2.4 Bin the variables of price
+NSK_Step3NB$price <- as.factor(NSK_Step3NB$price)
+NSK_Step3NB$price <- as.numeric(NSK_Step3NB$price)
+fivenum(NSK_Step3NB$price)
+NSK_Step3NB$price<- cut(NSK_Step3NB$price,breaks = c(-Inf,91.5, 161.0, 261.0, 430.0),labels = c("less than $91.5","less than $161","less than $261","less than $430"))
+
+#2.5 Bin the variables of accommodates
+str(NSK_Step3NB$accommodates)
+fivenum(NSK_Step3NB$accommodates)
+NSK_Step3NB$accommodates<- cut(NSK_Step3NB$accommodates,breaks = c(-Inf,4, 5, 6, 16),labels = c("less than 4 ppl","4-5 ppl","5-6 ppl","6-16 ppl"))
+
+#2.6 Bin the variables of host_acceptance_rate
+str(NSK_Step3NB$host_acceptance_rate)
+NSK_Step3NB$host_acceptance_rate= as.numeric(gsub("\\%", "", NSK_Step3NB$host_acceptance_rate))
+NSK_Step3NB$host_acceptance_rate <- NSK_Step3NB$host_acceptance_rate/100
+fivenum(NSK_Step3NB$host_acceptance_rate)
+NSK_Step3NB$host_acceptance_rate<- cut(NSK_Step3NB$host_acceptance_rate,breaks = c(-Inf,0.75,0.90,1),labels = c("less than 75%","less than 90%","100%"))
+
+#2.7 Change host_is_superhost's data structure into factor
+str(NSK_Step3NB$host_is_superhost)
+NSK_Step3NB$host_is_superhost <- as.factor(NSK_Step3NB$host_is_superhost)
+
+#Data preparation 3. Change numerical variables to categorical
+#NSK_Step3NB$bedrooms <- as.factor(NSK_Step3NB$bedrooms)
+#NSK_Step3NB$minimum_nights<- as.factor(NSK_Step3NB$minimum_nights)
+#NSK_Step3NB$instant_bookable <- as.factor(NSK_Step3NB$instant_bookable)
+#str(NSK_Step3NB$instant_bookable)
+```
+
+<b>Preparatory data analysis and make five barplots for five variables</b>
+```{r}
+#1. Barplot of relations between host_response_rate and instant_bookable
+#install.packages("ggplot2")
+#library(ggplot2)
+host_response_rate_barplot <- ggplot(NSK_Step3NB,aes(x=host_response_rate,fill=instant_bookable))+geom_bar(position="fill")+xlab("host_response_rate")+ggtitle("Relations between host_response_rate and instant_bookable")
+host_response_rate_barplot
+
+#2.Barplot of relations between bedrooms and instant_bookable
+bedrooms_barplot <- ggplot(NSK_Step3NB,aes(x=bedrooms,fill=instant_bookable))+geom_bar(position="fill")+xlab("bedrooms")+ggtitle("Relations between bedrooms and instant_bookable")
+bedrooms_barplot
+
+#3.Barplot of relations between minimum_nights and instant_bookable
+minimum_nights_barplot <- ggplot(NSK_Step3NB,aes(x=minimum_nights,fill=instant_bookable))+geom_bar(position="fill")+xlab("minimum_nights")+ggtitle("Relations between minimum_nights and instant_bookable")
+minimum_nights_barplot
+
+#4.Barplot of relations between price and instant_bookable
+price_barplot <- ggplot(NSK_Step3NB,aes(x=price,fill=instant_bookable))+geom_bar(position="fill")+xlab("price")+ggtitle("Relations between price and instant_bookable")
+price_barplot
+
+#5.Barplot of relations between accommodates and instant_bookable
+accommodates_barplot <- ggplot(NSK_Step3NB,aes(x=accommodates,fill=instant_bookable))+geom_bar(position="fill")+xlab("accommodates")+ggtitle("Relations between accommodates and instant_bookable")
+accommodates_barplot
+
+#6.Barplot of relations between host_acceptance_rate and instant_bookable
+host_acceptance_rate_barplot <- ggplot(NSK_Step3NB,aes(x=host_acceptance_rate,fill=instant_bookable))+geom_bar(position="fill")+xlab("host_acceptance_rate")+ggtitle("Relations between host_acceptance_rate and instant_bookable")
+host_acceptance_rate_barplot
+
+#7.Barplot of relations between host_is_superhost and instant_bookable
+host_is_superhost_barplot <- ggplot(NSK_Step3NB,aes(x=host_is_superhost,fill=instant_bookable))+geom_bar(position="fill")+xlab("host_is_superhost")+ggtitle("Relations between host_is_superhost and instant_bookable")
+host_is_superhost_barplot
+```
+
+
+<b>Description:</b> 
+These seven barplots are showing the relationship between the instant book rate with the predictors of host response rate, bedrooms, minimum nights, price, accommodates, host is superhost and host accepct rate. The barplot shows the response rate between 0-25% has the lower instant bookable rate than response rate between the 76-100%. Thus instant book rate is baseing on the response rate from the host. Also, the smaller numbers of minimum nights, the higher instant book rate. The hoses that requires 1-3 nights have higher instant bookable rate between 70% to 80% and the hosue that requires 4 to 180 nights that has a lower instant bookable rate between 50% to 35%. Also, the host accapet rate are related to the instant bookable rate, which showing that ther higer the host accept rate, the higher instant bookable rate. The hosts who have the 100% response rate are having 80% of instant bookable rate. The superhost is alwo related to the instant bookable and the host who is not a superhost will have a higher instant bookable with 75% than the host is superhost.
+
+<b>Steps to build a naive bayes model</b>
+```{r}
+# Partition data into training (50%) and validation (50%) sets.
+NSK_Step3NB2 <-NSK_Step3NB
+NSK_Step3NB2$number <- runif(nrow(NSK_Step3NB2))
+set.seed(1010)
+NB_train <- subset(NSK_Step3NB2, NSK_Step3NB2$number<=0.5)
+NB_valid <- subset(NSK_Step3NB2, NSK_Step3NB2$number>0.5)
+#NB_var <- c(7, 20, 22, 23, 49)
+#NB_train.index <- sample(c(1:dim(NSK_Step3NB)[1]), dim(NSK_Step3NB)[1]*0.5)  
+#NB_train.df <- NSK_Step3NB[NB_train.index, NB_var]
+#NB_valid.df <- NSK_Step3NB[-NB_train.index, NB_var]
+
+# Build a naive bayes model, with the response variable 'instant_bookable'.
+
+NB_train$number <- NULL
+NB_valid$number<-NULL
+NB_NSK <- naiveBayes(instant_bookable ~ ., data = NB_train)
+#NB_NSK
+
+#Show a confusion matrix that compares the performance of your model against the training data, and another that shows its performance against the validation data
+#NSK_Step3NB$instant_bookable <-as.factor(NSK_Step3NB$instant_bookable)
+library(caret)
+NSK_Step3NB3<-NSK_Step3NB2
+str(NSK_Step3NB2$instant_bookable)
+NSK_Step3NB2$instant_bookable <-as.factor(NSK_Step3NB2$instant_bookable)
+predict.NB.train <- predict(NB_NSK,newdata = NB_train)
+#confusionMatrix (predict.NB.train,as.factor(NB_train$instant_bookable))
+NB_train$instant_bookable <- as.factor(NB_train$instant_bookable)
+predict.NB.train <- as.factor(predict.NB.train)
+confusionMatrix(predict.NB.train, NB_train$instant_bookable)
+
+predict.NB.valid <- predict(NB_NSK,newdata =NB_valid)
+#View(predict.NB.valid)
+NB_valid$instant_bookable<- as.factor(NB_valid$instant_bookable)
+predict.NB.valid <- as.factor(predict.NB.valid)
+confusionMatrix(predict.NB.valid, NB_valid$instant_bookable)
+
+```
+
+<h3>Classification, Part III. Classification Tree</h3>
+```{r}
+set.seed(230)
+
+# remove meaningless columns
+classification_tree = subset(NShoreKauai_Step1, select = c(host_response_rate, host_acceptance_rate, host_listings_count, accommodates, bedrooms, beds, price, minimum_nights, maximum_nights, availability_365, number_of_reviews, review_scores_rating, reviews_per_month))
+
+# bin the review_scores_rating column
+fivenum(classification_tree$review_scores_rating)
+classification_tree$review_scores_rating = cut(classification_tree$review_scores_rating, breaks = c(-Inf, 95, 98, Inf), labels = c("poor", "average", "excellent"))
+summary(classification_tree$review_scores_rating)
+
+# set train and valid set
+classification_tree_sampler = sample_n(classification_tree, 1268)
+classification_tree_train = slice(classification_tree_sampler, 1:634)
+classification_tree_valid = slice(classification_tree_sampler, 635:1268)
+
+# build model to find the complexity parameters.
+cp_model = rpart(review_scores_rating~ ., data = classification_tree_train, method = "class", cp = 0.001, minsplit = 10, xval = 10)
+printcp(cp_model)
+
+# build and plot classification tree model
+classification_tree_model = rpart(review_scores_rating~., data = classification_tree_train, method = "class", cp =  0.0084746 )
+rpart.plot(classification_tree_model, type = 0, extra = 9)
+
+# calculate the accuracy of my tree model
+pred = predict(cp_model, classification_tree_valid, type = "class")
+confusionMatrix(pred, classification_tree_valid$review_scores_rating)
+```
+<b>Description: </b> I binned the review_score_rating into 3 clusters. Actually(poor: 336, average: 567,
+excellent: 365), I used 4 clusters at first with
+five number summary, but I noticed there are only a few records in one of the cluster and 
+it won't be used in the classification tree, so I changed to 3. Then I find the cp value with
+the lowest xerror and build the tree model with that cp. At last, I noticed the accuracy of 
+my model is only 58% with the validation data. This is not good and I think the reason of this
+is that I removed some columns that are important. Overall, the result is same as my expectation
+For example, more reviews would be higher score, less availability would be high score, higher
+price would be higher score.
+
+<h2>Step IV: Clustering </h2>
+```{r}
+set.seed(230)
+
+# choose input variables and normalize data
+clustering = subset(NShoreKauai_Step1, select = c(accommodates, bedrooms, beds, availability_365, price))
+clustering.norm = sapply(clustering, scale)
+
+# find the most efficient k value
+k.max = 15
+wss = sapply(1:k.max,
+             function(k){kmeans(clustering.norm, k, nstart = 50, iter.max = 15)$tot.withinss})
+plot(1:k.max, wss, 
+     type = "b", pch = 20, frame = FALSE, 
+     xlab = "Number of k", ylab = "Total Within-clusters Sum of Squares")
+
+# build clustering model
+km = kmeans(clustering.norm, 4, nstart = 25)
+km$centers
+km$size
+
+# bring back to the original data set
+NShoreKauai_Step1 = mutate(NShoreKauai_Step1, cluster = km$cluster)
+```
+<b>Description: </b> I want to cluster the records according to the accommodates and price, so I used relative
+variables as input. Then I find the the most efficient k value is 4 according to the plot.
+I clustering the records with 4 clusters, and I also tried 5, there were two very similar
+clusters. There are 356 records in the first cluster and I would call it best for couple because
+it always not available and I also noticed that its price and accommodates are also a little
+bit lower than the average. There are 415 records in the second cluster and I would call it
+economical small room because its accommodates, bedrooms, beds and price are much lower than
+the average. There are 173 records in the third clusters and I would call it family's choice
+because they are big house with high price. There are 324 records in the last cluster and I
+would call it normal room because its parameters are close to mean.
+
+
+<h2>Step V: Conclusions</h2>
+
+The first finding is that data preparation is the most important part and the very first part of the project. Although it is a lengthy step, the result of the data preparation will affect the following steps. In our project, data preparation includes data cleaning, removing useful variables, dealing with missing values in different ways, making corrections to data and reformatting data. It is a way to eliminate bias resulting and provide the useful data for the following steps. Besides, the summary statistics, world cloud and  data visualization in the data preparation are also necessary. By brainstorming the problems with the related variables in the data set, we can better understand the relationship between variables in the prior step of the project and provide basic information and ideas how to solve and analyze the variable in the following steps. 
+
+The second finding is about the use of the different classification methods, showing how to select the different algorithms in finding the relationships of different types of variables. In the Naive Bayes part, for instance, we need to deal with the relationship between the instant bookable and other variables, and to use the results to test the guessing at the prior steps. It is necessary to decide the predictors at first and build the Naive Bayes models to test the findings of relationship between several variables. This method is useful in data manipulation, especially in using a data set with a large number of variables. Instant book is an option for house hosts with a higher convenience and boosts response rate, and for being more bookable rate. One of the model results can show that the smaller number of the bedrooms, the higher instant bookable rate. Host can base on this result to adjust the number of bedrooms in order to improve response rate, bookable rate as well as bring more profits. 
+
+The findings from the airbnb host’s data show the lodging behaviour in the North Shore Kauai neighborhood. These findings are useful for many parties such as airbnb hosts, airbnb company, marketers and the travellers. Airbnb can use this analysis to understand the demand of the property type and accordingly they can bring more hosts on the platform. The analysis can be helpful for travelers as well who are travelling to this neighbourhood for vacation. They can estimate the price of their new accommodation as per the regional average cost. The travellers can also get some help in terms which property to choose based on the reviews and amenities. 
+
+Airbnb Hosts who are new can use this data to estimate the price of their property based on the demand and accommodations. Existing hosts can leverage this data analysis to understand where they are lacking in their service and improve. The multi-linear regression model can help the airbnb team to understand the factors which can affect the price per night of the property. For example- Price is highly dependent on Room Type, Cleanliness, location of the property and response of the host. Airbnb teams can share this detail with their host to ensure that the price meets the expectations of the travellers. According to the condition of their property, hosts' property will have a clustering and so, hosts are able to set prices and know target customers based on the other properties in the same clustering.
+
+<br></br>
+<h3> This is the end of the document</h3>
+
+
+
+
+
